@@ -1,0 +1,92 @@
+version: '2.4'
+
+x-app: &app
+  build:
+    context: .
+    dockerfile: ./Dockerfile
+    args:
+      ELIXIR_VERSION: '1.12.2'
+      PG_MAJOR: '13'
+      NODE_MAJOR: '13'
+      YARN_VERSION: '1.13.0'
+  environment: &env
+    NODE_ENV: ${NODE_ENV:-development}
+    YARN_CACHE_FOLDER: ${PWD}/node_modules/.yarn-cache
+  working_dir: ${PWD}
+  image: elixir-game:1.0.0
+  tmpfs:
+    - /tmp
+
+x-backend: &backend
+  <<: *app
+  stdin_open: true
+  tty: true
+  volumes:
+    - ../:${PWD}:cached
+    - node_modules:${PWD}/node_modules
+    - ./.psqlrc:/root/.psqlrc:ro
+    - ./.bashrc:/root/.bashrc:ro
+  environment: &backend_environment
+    <<: *env
+    REDIS_URL: redis://redis:6379/
+    DATABASE_URL: postgres://postgres:postgres@postgres:5432
+    CHROME_URL: http://chrome:3333
+    HISTFILE: ${PWD}/log/.bash_history
+    PSQL_HISTFILE: ${PWD}/log/.psql_history
+    EDITOR: vi
+    LOG: ${LOG:-0}
+  depends_on: &backend_depends_on
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  phenix:
+    <<: *backend
+    command: mix phx.server
+    ports:
+      - '3000:3000'
+
+
+  postgres:
+    image: postgres:13
+    volumes:
+      - ./.psqlrc:/root/.psqlrc:ro
+      - postgres:/var/lib/postgresql/data
+      - ../log:/root/log:cached
+    environment:
+      PSQL_HISTFILE: /root/log/.psql_history
+    ports:
+      - 5432
+    healthcheck:
+      test: pg_isready -U postgres -h 127.0.0.1
+      interval: 5s
+
+  redis:
+    image: redis:5.0-alpine
+    volumes:
+      - redis:/data
+    ports:
+      - 6379
+    healthcheck:
+      test: redis-cli ping
+      interval: 1s
+      timeout: 3s
+      retries: 30
+
+  chrome:
+    image: browserless/chrome:1.31-chrome-stable
+    ports:
+      - '3333:3333'
+    environment:
+      PORT: 3333
+      # Set connection timeout for debugging
+      # https://docs.browserless.io/docs/docker.html#connection-timeout
+      CONNECTION_TIMEOUT: 600000
+
+volumes:
+  postgres:
+  redis:
+  node_modules:
+  rails_cache:

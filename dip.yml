@@ -1,0 +1,39 @@
+version: '5.0'
+
+# environment:
+compose:
+  files:
+    - .dockerdev/docker-compose.yml
+  project_name: elixir-game
+
+interaction:
+  runner:
+    description: Open a Bash shell within a Phenix container (with dependencies up)
+    service: phenix
+    command: /bin/bash
+
+  bash:
+    description: Run an arbitrary script within a container (or open a shell without deps)
+    service: phenix
+    command: /bin/bash
+    compose_run_options: [no-deps]
+
+  yarn:
+    description: Run Yarn commands
+    service: rails
+    command: yarn
+    compose_run_options: [no-deps]
+
+  psql:
+    description: Run psql console
+    service: postgres
+    command: psql -h postgres -U postgres -d example_app_dev
+
+  'redis-cli':
+    description: Run Redis console
+    service: redis
+    command: redis-cli -h redis
+
+provision:
+  - dip compose down --volumes
+  - dip compose up -d postgres redis
