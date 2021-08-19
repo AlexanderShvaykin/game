@@ -7,22 +7,34 @@ compose:
   project_name: elixir-game
 
 interaction:
-  runner:
-    description: Open a Bash shell within a Phenix container (with dependencies up)
-    service: phenix
-    command: /bin/bash
-
   bash:
     description: Run an arbitrary script within a container (or open a shell without deps)
     service: phenix
     command: /bin/bash
     compose_run_options: [no-deps]
 
-  yarn:
-    description: Run Yarn commands
-    service: rails
-    command: yarn
-    compose_run_options: [no-deps]
+  mix:
+    description: Run mix
+    service: phenix
+    command: mix
+    subcommands:
+      server:
+        description: Run Phoenix server available at http://localhost:4000
+        service: phenix
+        compose:
+          run_options: [service-ports, use-aliases]
+
+  npm:
+    description: Run nmp in assets
+    service: phenix
+    command: npm
+    compose_run_options: [no-deps, workdir='$PWD/assets/']
+
+  node:
+    description: Run node in assets
+    service: phenix
+    command: node
+    compose_run_options: [no-deps, workdir='$PWD/assets/']
 
   psql:
     description: Run psql console
@@ -36,4 +48,11 @@ interaction:
 
 provision:
   - dip compose down --volumes
-  - dip compose up -d postgres redis
+  - dip mix local.hex --force
+  - dip mix local.rebar --force
+  - dip mix deps.get
+  - dip mix deps.compile
+  - dip npm install
+  - dip node node_modules/webpack/bin/webpack.js --mode development
+  - dip compose up -d postgres 
+  - dip mix ecto.setup
