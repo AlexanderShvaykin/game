@@ -13,7 +13,7 @@ dip provision
 Run Phoenix
 
 ```shell
-dip mix phx.server
+dip mix server
 ```
 
 See all dip tasks in dip.yml
